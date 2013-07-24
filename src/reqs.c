@@ -49,6 +49,8 @@
 #include "connect-ports.h"
 #include "conf.h"
 
+#define ZHOUZM_CHANGE
+
 /*
  * Maximum length of a HTTP line
  */
@@ -318,7 +320,11 @@ static int send_ssl_response (struct conn_s *connptr)
  * build a new request line. Finally connect to the remote server.
  */
 static struct request_s *process_request (struct conn_s *connptr,
-                                          hashmap_t hashofheaders)
+                                          hashmap_t hashofheaders
+                                          #ifdef ZHOUZM_CHANGE
+                                          ,const char **replace_file
+                                          #endif
+                                          )
 {
         char *url;
         struct request_s *request;
@@ -404,6 +410,48 @@ BAD_REQUEST_ERROR:
                 url = reverse_url;
         }
 #endif
+
+        #ifdef ZHOUZM_CHANGE
+        {
+          const char* debug_redirects1[] = {
+            "http://p3.pic.51img1.com/v3/my/js/index.js?",
+            "/data1/zhouzm/tmp/index.js",
+      
+            "http://static.51img1.com/v3/pub/js/jquery.js",
+            "/data1/zhouzm/tmp/jquery.js",
+      
+            0
+          };
+          const char* debug_redirects2[] = {
+            "http://www.baidu.com/",
+            "/home/zhouzm/tmp/index.html",
+      
+            "http://bbs.imp3.net/forumdata/cache/style_1_common.css?KWa",
+            "/data1/zhouzm/tmp/style_1_common.css",
+      
+            0
+          };
+          int i = 0;
+          const char *debug_redirect = 0;
+          printf("%s\n", url);
+        
+          *replace_file = 0;
+          for (i = 0; (debug_redirect = debug_redirects1[i]); i += 2) {
+            if (strstr(url, debug_redirect)) {
+              *replace_file = debug_redirects1[i+1];
+              break;
+            }
+          }
+          if (!*replace_file) {
+            for (i = 0; (debug_redirect = debug_redirects2[i]); i += 2) {
+              if (strcmp(url, debug_redirect) == 0) {
+                *replace_file = debug_redirects2[i+1];
+                break;
+              }
+            }
+          }
+        }
+        #endif
 
         if (strncasecmp (url, "http://", 7) == 0
             || (UPSTREAM_CONFIGURED () && strncasecmp (url, "ftp://", 6) == 0))
@@ -939,7 +987,11 @@ PULL_CLIENT_DATA:
  * Loop through all the headers (including the response code) from the
  * server.
  */
-static int process_server_headers (struct conn_s *connptr)
+static int process_server_headers (struct conn_s *connptr
+                                   #ifdef ZHOUZM_CHANGE
+                                   , int replace_content_length
+                                   #endif
+)
 {
         static const char *skipheaders[] = {
                 "keep-alive",
@@ -1099,6 +1151,23 @@ retry:
                 for (; !hashmap_is_end (hashofheaders, iter); ++iter) {
                         hashmap_return_entry (hashofheaders,
                                               iter, &data, (void **) &header);
+
+                        #ifdef ZHOUZM_CHANGE
+                        {
+                            char replace_header[256];
+                            if (replace_content_length >= 0
+                                    && (strcmp(data, "Content-Length") == 0
+                                    || strcmp(data, "Content-length") == 0)) {
+                                sprintf(replace_header, "%d", replace_content_length);
+                                header = replace_header;
+                            }
+                            if (replace_content_length >= 0
+                                    && (strcmp(data, "Content-Encoding") == 0
+                                    || strcmp(data, "Content-encoding") == 0)) {
+                                continue;
+                            }
+                        }
+                        #endif
 
                         ret = write_message (connptr->client_fd,
                                              "%s: %s\r\n", data, header);
@@ -1378,6 +1447,12 @@ void handle_connection (int fd)
         char peer_ipaddr[IP_LENGTH];
         char peer_string[HOSTNAME_LENGTH];
 
+        #ifdef ZHOUZM_CHANGE
+        const char *replace_file = 0;
+        char *replace_file_data = 0;
+        int replace_file_size = -1;
+        #endif
+
         getpeer_information (fd, peer_ipaddr, peer_string);
 
         if (config.bindsame)
@@ -1455,7 +1530,27 @@ void handle_connection (int fd)
                                 header->value, strlen (header->value) + 1);
         }
 
+        #ifdef ZHOUZM_CHANGE
+        request = process_request (connptr, hashofheaders, &replace_file);
+        if (replace_file) {
+          FILE *file = NULL; 
+          int file_size = 0;
+          printf("  << %s\n", replace_file);
+          file = fopen(replace_file, "rb");
+          if (!file) {
+            printf("can't open debug file!!!\n");
+            replace_file = NULL;
+          }
+          fseek(file, 0L, SEEK_END);
+          file_size = ftell(file);
+          fseek(file, 0L, SEEK_SET);
+          replace_file_data = (char*) malloc(file_size);
+          replace_file_size = fread(replace_file_data, 1, file_size, file);
+          fclose(file);
+        }
+        #else
         request = process_request (connptr, hashofheaders);
+        #endif
         if (!request) {
                 if (!connptr->show_stats) {
                         update_stats (STAT_BADCONN);
@@ -1495,7 +1590,7 @@ void handle_connection (int fd)
         }
 
         if (!(connptr->connect_method && (connptr->upstream_proxy == NULL))) {
-                if (process_server_headers (connptr) < 0) {
+                if (process_server_headers (connptr, replace_file_size) < 0) {
                         update_stats (STAT_BADCONN);
                         goto fail;
                 }
@@ -1509,7 +1604,12 @@ void handle_connection (int fd)
                 }
         }
 
-        relay_connection (connptr);
+        #ifdef ZHOUZM_CHANGE
+        if (replace_file)
+            safe_write(connptr->client_fd, replace_file_data, replace_file_size);
+        else
+        #endif
+            relay_connection (connptr);
 
         log_message (LOG_INFO,
                      "Closed connection between local client (fd:%d) "
