@@ -433,7 +433,7 @@ BAD_REQUEST_ERROR:
           };
           int i = 0;
           const char *debug_redirect = 0;
-          printf("%s\n", url);
+          printf("\x1b[1m[%8s]\x1b[0m %s\n", request->method, url);
         
           *replace_file = 0;
           for (i = 0; (debug_redirect = debug_redirects1[i]); i += 2) {
