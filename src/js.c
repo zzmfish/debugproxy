@@ -42,10 +42,14 @@ AstNode* create_node(AstNode *parent, NodeType type, int pos, int len)
     node->first_child = NULL;
     node->last_child = NULL;
     node->next = NULL;
+    //printf("create_node(parent=%p, type=%d, pos=%d, len=%d) => %p\n",
+        //parent, type, pos, len, node);
+    return node;
 }
 
 void append_child(AstNode *parent, AstNode *child)
 {
+    //printf("append_child(parent=%p, child=%p)\n", parent, child);
     if (!parent->first_child) {
         parent->first_child = child;
         parent->last_child = child;
@@ -57,6 +61,42 @@ void append_child(AstNode *parent, AstNode *child)
     child->parent = parent;
 }
 
+AstNode* parse_statement(ParseState *state);
+
+AstNode* parse_other(ParseState *state)
+{
+    AstNode *node = create_node(state->cur_node, OTHER, state->source_pos, 0);
+    char c;
+    while (c= next_char(state)) {
+        if (c == '{' || c == '}') {
+            state->source_pos --;
+            break;
+        }
+        else
+            node->source_len ++;
+
+    }
+    return node;
+}
+
+AstNode* parse_block(ParseState *state, char end_char)
+{
+    AstNode *node = create_node(state->cur_node, BLOCK, state->source_pos, 0);
+    AstNode *cur_node = state->cur_node;
+    state->cur_node = node;
+    char c = next_char(state);
+    while (c != '\0' && c != end_char) {
+        state->source_pos --;
+        AstNode *child = parse_statement(state);
+        if (child)
+            append_child(node, child);
+        c = next_char(state);
+    }
+    node->source_len = state->source_pos - node->source_pos - 1;
+    state->cur_node = cur_node;
+    return node;
+}
+
 AstNode* parse_statement(ParseState *state)
 {
     AstNode *node = NULL;
@@ -64,13 +104,15 @@ AstNode* parse_statement(ParseState *state)
     while (c= next_char(state)) {
         switch (c) {
         case '{':
-            node = create_node(state->cur_node, BLOCK, state->source_pos - 1, 0);
-            break;
-        case '}':
+            node = parse_block(state, '}');
             break;
         default:
+            state->source_pos --;
+            node = parse_other(state);
             break;
         }
+        if (node)
+            break;
     }
     return node;
 }
@@ -111,18 +153,28 @@ char *read_file(char *path, int *psize)
     return buffer;
 }
 
+/***********
+ * 打印AST
+ ***********/
 void print_tree(AstNode *node, int indent)
 {
+    static const char indent_space[] = "                                                                      ";
     if (!node)
         return;
-    printf("type=%d\n", node->type);
+    if (indent > sizeof(indent_space) - 1)
+        indent = sizeof(indent_space) - 1;
+    const char *indent_str = indent_space + sizeof(indent_space) - indent - 1;
+    printf("%s<%d> @%d,%d\n", indent_str, node->type, node->source_pos, node->source_len);
     AstNode *child = node->first_child;
     while (child) {
-        print_tree(child, indent + 1);
+        print_tree(child, indent + 2);
         child = child->next;
     }
 }
 
+/**********
+ * 主程序
+ **********/
 int main(int argc, char **argv)
 {
     /*
@@ -134,7 +186,7 @@ int main(int argc, char **argv)
     int source_len = 0;
     char *source = read_file(file, &source_len);
     */
-    char source[] = "{var i}";
+    char source[] = "{var i}{var j; {}}";
     int source_len = sizeof(source);
     printf("%s\n", source);
     printf("len=%d\n", source_len);
