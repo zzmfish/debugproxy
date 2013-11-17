@@ -157,22 +157,61 @@ char *read_file(char *path, int *psize)
     return buffer;
 }
 
-/***********
- * 打印AST
- ***********/
-void print_tree(AstNode *node, int indent)
+void print_source(char *source, int source_len)
 {
+    int i;
+    for (i = 0; i < source_len; i ++) {
+        printf("%c", source[i]);
+    }
+}
+
+/***********
+ * 显示AST
+ ***********/
+void print_tree(AstNode *node, char *source, int indent)
+{
+    int pos, len;
+    AstNode *last_child;
+
     static const char indent_space[] = "                                                                      ";
     if (!node)
         return;
+
+    /* 缩进 */
     if (indent > sizeof(indent_space) - 1)
         indent = sizeof(indent_space) - 1;
     const char *indent_str = indent_space + sizeof(indent_space) - indent - 1;
-    printf("%s<%d> @%d,%d\n", indent_str, node->type, node->source_pos, node->source_len);
+    //printf("%s<%d> @%d,%d\n", indent_str, node->type, node->source_pos, node->source_len);
+    
+    /* 显示前面代码 */
+    pos = node->source_pos;
+    len = node->source_len;
+    if (node->first_child) {
+        len = node->first_child->source_pos - pos;
+    }
+    if (len > 0) {
+        printf("%s", indent_str);
+        print_source(source + pos, len);
+        printf("\n");
+    }
+
+    /* 显示孩子节点 */
     AstNode *child = node->first_child;
     while (child) {
-        print_tree(child, indent + 2);
+        print_tree(child, source, indent + 2);
         child = child->next;
+    }
+
+    /* 显示后面代码 */
+    last_child = node->last_child;
+    if (last_child) {
+        pos = last_child->source_pos + last_child->source_len;
+        len = node->source_pos + node->source_len - pos;
+        if (len > 0) {
+            printf("%s", indent_str);
+            print_source(source + pos, len);
+            printf("\n");
+        }
     }
 }
 
@@ -197,7 +236,8 @@ int main(int argc, char **argv)
 
     AST ast;
     ast.root = parse(source, source_len);
-    print_tree(ast.root, 0);
+    printf("Syntax Tree:\n");
+    print_tree(ast.root, source, 0);
 
     return 0;
 }
