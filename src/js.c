@@ -79,9 +79,13 @@ AstNode* parse_other(ParseState *state)
     return node;
 }
 
-AstNode* parse_block(ParseState *state, char end_char)
+AstNode* parse_block(ParseState *state)
 {
-    AstNode *node = create_node(state->cur_node, BLOCK, state->source_pos, 0);
+    char start_char = state->source[state->source_pos - 1];
+    char end_char = '\0';
+    if (start_char == '{')
+        end_char = '}';
+    AstNode *node = create_node(state->cur_node, BLOCK, state->source_pos - 1, 0);
     AstNode *cur_node = state->cur_node;
     state->cur_node = node;
     char c = next_char(state);
@@ -92,7 +96,7 @@ AstNode* parse_block(ParseState *state, char end_char)
             append_child(node, child);
         c = next_char(state);
     }
-    node->source_len = state->source_pos - node->source_pos - 1;
+    node->source_len = state->source_pos - node->source_pos;
     state->cur_node = cur_node;
     return node;
 }
@@ -104,7 +108,7 @@ AstNode* parse_statement(ParseState *state)
     while (c= next_char(state)) {
         switch (c) {
         case '{':
-            node = parse_block(state, '}');
+            node = parse_block(state);
             break;
         default:
             state->source_pos --;
