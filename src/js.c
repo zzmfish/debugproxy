@@ -157,7 +157,7 @@ char *read_file(char *path, int *psize)
     return buffer;
 }
 
-void print_source(char *source, int source_len)
+void print_source(const char *source, int source_len)
 {
     int i;
     for (i = 0; i < source_len; i ++) {
@@ -172,16 +172,23 @@ void print_tree(AstNode *node, char *source, int indent)
 {
     int pos, len;
     AstNode *last_child;
+    char desc[15];
+    int desc_len;
 
     static const char indent_space[] = "                                                                      ";
     if (!node)
         return;
 
+
+    
     /* 缩进 */
     if (indent > sizeof(indent_space) - 1)
         indent = sizeof(indent_space) - 1;
     const char *indent_str = indent_space + sizeof(indent_space) - indent - 1;
-    //printf("%s<%d> @%d,%d\n", indent_str, node->type, node->source_pos, node->source_len);
+
+    //节点信息
+    desc_len = snprintf(desc, sizeof(desc), "%d @%d,%d", node->type, node->source_pos, node->source_len);
+    printf("%s%s", indent_str, desc);
     
     /* 显示前面代码 */
     pos = node->source_pos;
@@ -190,10 +197,10 @@ void print_tree(AstNode *node, char *source, int indent)
         len = node->first_child->source_pos - pos;
     }
     if (len > 0) {
-        printf("%s", indent_str);
+        print_source(indent_space, sizeof(desc) - desc_len);
         print_source(source + pos, len);
-        printf("\n");
     }
+    printf("\n");
 
     /* 显示孩子节点 */
     AstNode *child = node->first_child;
@@ -209,6 +216,7 @@ void print_tree(AstNode *node, char *source, int indent)
         len = node->source_pos + node->source_len - pos;
         if (len > 0) {
             printf("%s", indent_str);
+            print_source(indent_space, sizeof(desc));
             print_source(source + pos, len);
             printf("\n");
         }
