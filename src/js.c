@@ -103,7 +103,9 @@ int is_keyword(const char *str, int len)
 
 int is_function_keyword(AstNode *node, char *source)
 {
-    return node->source_len == 8 && strncmp(source + node->source_pos, "function", 8) == 0;
+    return node->type == KEYWORD
+        && node->source_len == 8
+        && strncmp(source + node->source_pos, "function", 8) == 0;
 }
 
 AstNode* parse_name(ParseState *state)
@@ -200,14 +202,30 @@ int is_function_block(AstNode *node, char *source, AstNode **name)
 {
     if (node->type == BLOCK && source[node->source_pos] == '{') {
         AstNode *prev1 = node->prev;
-        if (prev1 && prev1->type == BLOCK && source[prev1->source_pos] == '(') {
+        if (!prev1) return 0;
+        if (prev1->type == BLOCK && source[prev1->source_pos] == '(') {
             AstNode *prev2 = prev1->prev;
-            if (prev2 && prev2->type == NAME) {
+            if (!prev2) return 0;
+            if (prev2->type == NAME) {
                 AstNode *prev3 = prev2->prev;
-                if (prev3 && is_function_keyword(prev3, source)) {
+                if (!prev3) return 0;
+                if (is_function_keyword(prev3, source)) {
                     if (name)
                         *name = prev2;
                     return 1;
+                }
+            }
+            else if (is_function_keyword(prev2, source)) {
+                AstNode *prev3 = prev2->prev;
+                if (!prev3) return 0;
+                if (prev3->type == OPERATOR && source[prev3->source_pos] == ':') {
+                    AstNode *prev4 = prev3->prev;
+                    if (!prev4) return 0;
+                    if (prev4->type == NAME) {
+                        if (name)
+                            *name = prev4;
+                        return 1;
+                    }
                 }
             }
         }
