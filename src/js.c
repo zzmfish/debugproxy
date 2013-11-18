@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "common.h"
 
 /* 节点类型 */
@@ -190,7 +191,9 @@ AstNode* __parse_statement(ParseState *state, int testMode)
 
 typedef struct {
     char *buffer;
+    int buffer_cap;
     int buffer_len;
+    int dumped_pos;
 } InsertState;
 
 int is_function_block(AstNode *node, char *source)
@@ -209,18 +212,49 @@ int is_function_block(AstNode *node, char *source)
     return 0;
 }
 
+void append_source(InsertState *state, const char *source, int source_len)
+{
+    if (source_len == 0)
+        return;
+    if (state->buffer_len + source_len > state->buffer_cap) {
+        if (source_len > state->buffer_cap)
+            state->buffer_cap += source_len;
+        else
+            state->buffer_cap *= 2;
+        state->buffer = (char*) realloc(state->buffer, state->buffer_cap);
+    }
+    memcpy(state->buffer + state->buffer_len, source, source_len);
+    state->buffer_len += source_len;
+}
 
 void __insert_profile_codes(AstNode *node, char *source, InsertState *state)
 {
+    const char code[] = "console.log(this);\n";
+    if (!node) return;
+    if (is_function_block(node, source)) {
+        append_source(state, source + state->dumped_pos, node->source_pos + 1 - state->dumped_pos);
+        state->dumped_pos = node->source_pos + 1;
+        append_source(state, code, sizeof(code) - 1);
+    }
+    AstNode *child = node->first_child;
+    while (child) {
+        __insert_profile_codes(child, source, state);
+        child = child->next;
+    }
 }
 
 void insert_profile_codes(AST *ast, char *source, int source_len,
         char **new_source, int *new_source_len)
 {
     InsertState state;
-    state.buffer_len = 1024;
-    state.buffer = (char*) malloc(state.buffer_len);
+    state.buffer_cap = 1024;
+    state.buffer = (char*) malloc(state.buffer_cap);
+    state.buffer_len = 0;
+    state.dumped_pos = 0;
     __insert_profile_codes(ast->root, source, &state);
+    append_source(&state, source + state.dumped_pos, source_len - state.dumped_pos);
+    *new_source = state.buffer;
+    *new_source_len = state.buffer_len;
 }
 
 AstNode* parse(char *source, int source_len)
@@ -257,6 +291,17 @@ char *read_file(char *path, int *psize)
         fclose(file);
     }
     return buffer;
+}
+
+int write_file(char *path, char *buffer, int size)
+{
+    int result = 0;
+    FILE *file = fopen(path, "w");
+    if (file) {
+        result = fwrite(buffer, 1, size, file);
+        fclose(file);
+    }
+    return result;
 }
 
 void print_source(const char *source, int source_len, Bool single_line)
@@ -334,13 +379,14 @@ void print_tree(AstNode *node, char *source, int indent)
  **********/
 int main(int argc, char **argv)
 {
-    if (argc != 2) {
-        printf("Usage: js <file>\n");
+    if (argc != 3) {
+        printf("Usage: js <infile> <outfile>\n");
         return 0;
     }
-    char *file = argv[1];
+    char *infile = argv[1];
+    char *outfile = argv[2];
     int source_len = 0;
-    char *source = read_file(file, &source_len);
+    char *source = read_file(infile, &source_len);
     #if 0
     char source[] = "{var i}{var j = 0; {} function a() { alert(1); alert([1, 2]) }}";
     int source_len = sizeof(source);
@@ -351,7 +397,14 @@ int main(int argc, char **argv)
     AST ast;
     ast.root = parse(source, source_len);
     printf("Syntax Tree:\n");
-    print_tree(ast.root, source, 0);
+    //print_tree(ast.root, source, 0);
+
+    char *new_source = NULL;
+    int new_source_len = 0;
+    insert_profile_codes(&ast, source, source_len, &new_source, &new_source_len);
+    printf("new_len=%d\n", new_source_len);
+    if (new_source_len)
+        write_file(outfile, new_source, new_source_len);
 
     return 0;
 }
