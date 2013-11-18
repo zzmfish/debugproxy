@@ -65,6 +65,12 @@ AstNode* __parse_statement(ParseState *state, int testMode);
 AstNode* parse_statement(ParseState *state) { return __parse_statement(state, 0); }
 AstNode* test_statement(ParseState *state) { return __parse_statement(state, 1); }
 
+AstNode* parse_operator(ParseState *state)
+{
+    AstNode *node = create_node(state->cur_node, OPERATOR, state->source_pos, 1);
+    next_char(state);
+    return node;
+}
 
 AstNode* parse_other(ParseState *state)
 {
@@ -133,6 +139,10 @@ AstNode* __parse_statement(ParseState *state, int testMode)
     else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
         state->source_pos --;
         node = testMode ? (AstNode*)1 : parse_name(state);
+    }
+    else if (c == ':' || c == '=') {
+        state->source_pos --;
+        node = testMode ? (AstNode*)1 : parse_operator(state);
     }
     else if (c == '}') {
         if (testMode) {
@@ -268,7 +278,7 @@ int main(int argc, char **argv)
     int source_len = 0;
     char *source = read_file(file, &source_len);
     */
-    char source[] = "{var i}{var j; {}}";
+    char source[] = "{var i}{var j = 0; {}}";
     int source_len = sizeof(source);
     printf("%s\n", source);
     printf("len=%d\n", source_len);
