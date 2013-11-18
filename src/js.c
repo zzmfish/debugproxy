@@ -86,6 +86,17 @@ AstNode* parse_other(ParseState *state)
     return node;
 }
 
+int is_keyword(const char *str, int len)
+{
+    const char* keywords[] = {"function"};
+    int i;
+    for (i = 0; i < sizeof(keywords) / sizeof(char*); i ++) {
+        if (strncmp(str, keywords[i], len) == 0)
+            return 1;
+    }
+    return 0;
+}
+
 AstNode* parse_name(ParseState *state)
 {
     char c;
@@ -98,6 +109,8 @@ AstNode* parse_name(ParseState *state)
             break;
         }
     }
+    if (is_keyword(state->source + node->source_pos, node->source_len))
+        node->type = KEYWORD;
     return node;
 }
 
@@ -278,7 +291,7 @@ int main(int argc, char **argv)
     int source_len = 0;
     char *source = read_file(file, &source_len);
     */
-    char source[] = "{var i}{var j = 0; {}}";
+    char source[] = "{var i}{var j = 0; {} function a() { alert(1) }}";
     int source_len = sizeof(source);
     printf("%s\n", source);
     printf("len=%d\n", source_len);
