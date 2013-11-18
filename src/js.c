@@ -120,6 +120,10 @@ AstNode* parse_block(ParseState *state)
     char end_char = '\0';
     if (start_char == '{')
         end_char = '}';
+    else if (start_char == '(')
+        end_char = ')';
+    else if (start_char = '[')
+        end_char = ']';
     AstNode *node = create_node(state->cur_node, BLOCK, state->source_pos - 1, 0);
     AstNode *cur_node = state->cur_node;
     state->cur_node = node;
@@ -146,7 +150,7 @@ AstNode* __parse_statement(ParseState *state, int testMode)
     c = next_char(state);
     if (c == '\0') {
     }
-    else if (c == '{') {
+    else if (c == '{' || c == '(' || c == '[') {
         node = testMode ? (AstNode*)1 : parse_block(state);
     }
     else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
@@ -157,7 +161,7 @@ AstNode* __parse_statement(ParseState *state, int testMode)
         state->source_pos --;
         node = testMode ? (AstNode*)1 : parse_operator(state);
     }
-    else if (c == '}') {
+    else if (c == '}' || c == ')' || c == ']') {
         if (testMode) {
             node = (AstNode*) 1;
         }
@@ -291,7 +295,7 @@ int main(int argc, char **argv)
     int source_len = 0;
     char *source = read_file(file, &source_len);
     */
-    char source[] = "{var i}{var j = 0; {} function a() { alert(1) }}";
+    char source[] = "{var i}{var j = 0; {} function a() { alert(1); alert([1, 2]) }}";
     int source_len = sizeof(source);
     printf("%s\n", source);
     printf("len=%d\n", source_len);
