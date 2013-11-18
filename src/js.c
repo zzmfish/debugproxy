@@ -61,20 +61,36 @@ void append_child(AstNode *parent, AstNode *child)
     child->parent = parent;
 }
 
-AstNode* parse_statement(ParseState *state);
+AstNode* __parse_statement(ParseState *state, int testMode);
+AstNode* parse_statement(ParseState *state) { return __parse_statement(state, 0); }
+AstNode* test_statement(ParseState *state) { return __parse_statement(state, 1); }
+
 
 AstNode* parse_other(ParseState *state)
 {
+    //printf("parse_other BEGIN pos=%d\n", state->source_pos);
     AstNode *node = create_node(state->cur_node, OTHER, state->source_pos, 0);
+    while (test_statement(state) == NULL) {
+        if (state->source[state->source_pos] == '\0')
+            break;
+        state->source_pos ++;
+        node->source_len ++;
+    }
+    //printf("parse_other END\n");
+    return node;
+}
+
+AstNode* parse_name(ParseState *state)
+{
     char c;
-    while (c= next_char(state)) {
-        if (c == '{' || c == '}') {
+    AstNode *node = create_node(state->cur_node, OTHER, state->source_pos, 0);
+    while (c = next_char(state)) {
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+            node->source_len ++;
+        else {
             state->source_pos --;
             break;
         }
-        else
-            node->source_len ++;
-
     }
     return node;
 }
@@ -101,23 +117,38 @@ AstNode* parse_block(ParseState *state)
     return node;
 }
 
-AstNode* parse_statement(ParseState *state)
+AstNode* __parse_statement(ParseState *state, int testMode)
 {
+    //printf("__parse_statement(pos=%d, testMode=%d)\n", state->source_pos, testMode);
     AstNode *node = NULL;
     char c;
-    while (c= next_char(state)) {
-        switch (c) {
-        case '{':
-            node = parse_block(state);
-            break;
-        default:
-            state->source_pos --;
-            node = parse_other(state);
-            break;
-        }
-        if (node)
-            break;
+    int source_pos = state->source_pos;
+
+    c = next_char(state);
+    if (c == '\0') {
     }
+    else if (c == '{') {
+        node = testMode ? (AstNode*)1 : parse_block(state);
+    }
+    else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+        state->source_pos --;
+        node = testMode ? (AstNode*)1 : parse_name(state);
+    }
+    else if (c == '}') {
+        if (testMode) {
+            node = (AstNode*) 1;
+        }
+        else {
+            printf("error\n");
+            exit(0);
+        }
+    }
+    else if (!testMode) {
+        state->source_pos --;
+        node = parse_other(state);
+    }
+    if (testMode)
+        state->source_pos = source_pos;
     return node;
 }
 
