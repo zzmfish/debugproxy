@@ -196,7 +196,7 @@ typedef struct {
     int dumped_pos;
 } InsertState;
 
-int is_function_block(AstNode *node, char *source)
+int is_function_block(AstNode *node, char *source, AstNode **name)
 {
     if (node->type == BLOCK && source[node->source_pos] == '{') {
         AstNode *prev1 = node->prev;
@@ -204,8 +204,11 @@ int is_function_block(AstNode *node, char *source)
             AstNode *prev2 = prev1->prev;
             if (prev2 && prev2->type == NAME) {
                 AstNode *prev3 = prev2->prev;
-                if (prev3 && is_function_keyword(prev3, source))
+                if (prev3 && is_function_keyword(prev3, source)) {
+                    if (name)
+                        *name = prev2;
                     return 1;
+                }
             }
         }
     }
@@ -229,12 +232,23 @@ void append_source(InsertState *state, const char *source, int source_len)
 
 void __insert_profile_codes(AstNode *node, char *source, InsertState *state)
 {
-    const char code[] = "console.log(this);\n";
     if (!node) return;
-    if (is_function_block(node, source)) {
+    AstNode *name_node = NULL;
+    if (is_function_block(node, source, &name_node)) {
+        //插入源码
         append_source(state, source + state->dumped_pos, node->source_pos + 1 - state->dumped_pos);
         state->dumped_pos = node->source_pos + 1;
-        append_source(state, code, sizeof(code) - 1);
+        //函数名称
+        char name[64];
+        int name_len = name_node->source_len;
+        if (name_len > sizeof(name) - 1)
+            name_len = sizeof(name) - 1;
+        memcpy(name, source + name_node->source_pos, name_len);
+        name[name_len] = '\0';
+        //函数日志
+        char code[128];
+        snprintf(code, sizeof(code), "console.log(\"%s\");\n", name);
+        append_source(state, code, strlen(code));
     }
     AstNode *child = node->first_child;
     while (child) {
@@ -349,7 +363,7 @@ void print_tree(AstNode *node, char *source, int indent)
         print_source(indent_space, sizeof(desc) - desc_len, True);
         print_source(source + pos, len, True);
     }
-    if (is_function_block(node, source))
+    if (is_function_block(node, source, NULL))
         printf(" *");
     printf("\n");
 
