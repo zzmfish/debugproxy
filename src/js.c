@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "common.h"
 
 /* 节点类型 */
 typedef enum { NAME, KEYWORD, BLOCK, OPERATOR, STAMENT, OTHER } NodeType;
@@ -102,7 +103,10 @@ AstNode* parse_name(ParseState *state)
     char c;
     AstNode *node = create_node(state->cur_node, OTHER, state->source_pos, 0);
     while (c = next_char(state)) {
-        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+        if ((c >= 'a' && c <= 'z')
+            || (c >= 'A' && c <= 'Z'
+            || (c >= '0' && c <= '9')
+            || c == '_'))
             node->source_len ++;
         else {
             state->source_pos --;
@@ -155,7 +159,7 @@ AstNode* __parse_statement(ParseState *state, int testMode)
     else if (c == '{' || c == '(' || c == '[') {
         node = testMode ? (AstNode*)1 : parse_block(state);
     }
-    else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+    else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
         state->source_pos --;
         node = testMode ? (AstNode*)1 : parse_name(state);
     }
@@ -213,11 +217,13 @@ char *read_file(char *path, int *psize)
     return buffer;
 }
 
-void print_source(const char *source, int source_len)
+void print_source(const char *source, int source_len, Bool single_line)
 {
     int i;
     for (i = 0; i < source_len; i ++) {
-        printf("%c", source[i]);
+        char c = source[i];
+        if (!single_line || (c != '\r' && c != '\n'))
+            printf("%c", source[i]);
     }
 }
 
@@ -253,8 +259,8 @@ void print_tree(AstNode *node, char *source, int indent)
         len = node->first_child->source_pos - pos;
     }
     if (len > 0) {
-        print_source(indent_space, sizeof(desc) - desc_len);
-        print_source(source + pos, len);
+        print_source(indent_space, sizeof(desc) - desc_len, True);
+        print_source(source + pos, len, True);
     }
     printf("\n");
 
@@ -272,8 +278,8 @@ void print_tree(AstNode *node, char *source, int indent)
         len = node->source_pos + node->source_len - pos;
         if (len > 0) {
             printf("%s", indent_str);
-            print_source(indent_space, sizeof(desc));
-            print_source(source + pos, len);
+            print_source(indent_space, sizeof(desc), True);
+            print_source(source + pos, len, True);
             printf("\n");
         }
     }
@@ -284,7 +290,6 @@ void print_tree(AstNode *node, char *source, int indent)
  **********/
 int main(int argc, char **argv)
 {
-    /*
     if (argc != 2) {
         printf("Usage: js <file>\n");
         return 0;
@@ -292,11 +297,12 @@ int main(int argc, char **argv)
     char *file = argv[1];
     int source_len = 0;
     char *source = read_file(file, &source_len);
-    */
+    #if 0
     char source[] = "{var i}{var j = 0; {} function a() { alert(1); alert([1, 2]) }}";
     int source_len = sizeof(source);
     printf("%s\n", source);
     printf("len=%d\n", source_len);
+    #endif
 
     AST ast;
     ast.root = parse(source, source_len);
