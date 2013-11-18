@@ -148,6 +148,8 @@ AstNode* __parse_statement(ParseState *state, int testMode)
     int source_pos = state->source_pos;
 
     c = next_char(state);
+    while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+        c = next_char(state);
     if (c == '\0') {
     }
     else if (c == '{' || c == '(' || c == '[') {
@@ -164,10 +166,6 @@ AstNode* __parse_statement(ParseState *state, int testMode)
     else if (c == '}' || c == ')' || c == ']') {
         if (testMode) {
             node = (AstNode*) 1;
-        }
-        else {
-            printf("error\n");
-            exit(0);
         }
     }
     else if (!testMode) {
