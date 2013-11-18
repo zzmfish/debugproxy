@@ -9,7 +9,7 @@ typedef enum { NAME, KEYWORD, BLOCK, OPERATOR, STAMENT, OTHER } NodeType;
 struct AstNode_t {
     int source_pos, source_len;
     NodeType type;
-    struct AstNode_t *parent, *first_child, *last_child, *next;
+    struct AstNode_t *parent, *first_child, *last_child, *next, *prev;
 };
 typedef struct AstNode_t AstNode;
 
@@ -43,6 +43,7 @@ AstNode* create_node(AstNode *parent, NodeType type, int pos, int len)
     node->first_child = NULL;
     node->last_child = NULL;
     node->next = NULL;
+    node->prev = NULL;
     //printf("create_node(parent=%p, type=%d, pos=%d, len=%d) => %p\n",
         //parent, type, pos, len, node);
     return node;
@@ -57,6 +58,7 @@ void append_child(AstNode *parent, AstNode *child)
     }
     else {
         parent->last_child->next = child;
+        child->prev = parent->last_child;
         parent->last_child = child;
     }
     child->parent = parent;
@@ -98,10 +100,15 @@ int is_keyword(const char *str, int len)
     return 0;
 }
 
+int is_function_keyword(AstNode *node, char *source)
+{
+    return node->source_len == 8 && strncmp(source + node->source_pos, "function", 8) == 0;
+}
+
 AstNode* parse_name(ParseState *state)
 {
     char c;
-    AstNode *node = create_node(state->cur_node, OTHER, state->source_pos, 0);
+    AstNode *node = create_node(state->cur_node, NAME, state->source_pos, 0);
     while (c = next_char(state)) {
         if ((c >= 'a' && c <= 'z')
             || (c >= 'A' && c <= 'Z'
@@ -179,6 +186,41 @@ AstNode* __parse_statement(ParseState *state, int testMode)
     if (testMode)
         state->source_pos = source_pos;
     return node;
+}
+
+typedef struct {
+    char *buffer;
+    int buffer_len;
+} InsertState;
+
+int is_function_block(AstNode *node, char *source)
+{
+    if (node->type == BLOCK && source[node->source_pos] == '{') {
+        AstNode *prev1 = node->prev;
+        if (prev1 && prev1->type == BLOCK && source[prev1->source_pos] == '(') {
+            AstNode *prev2 = prev1->prev;
+            if (prev2 && prev2->type == NAME) {
+                AstNode *prev3 = prev2->prev;
+                if (prev3 && is_function_keyword(prev3, source))
+                    return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+
+void __insert_profile_codes(AstNode *node, char *source, InsertState *state)
+{
+}
+
+void insert_profile_codes(AST *ast, char *source, int source_len,
+        char **new_source, int *new_source_len)
+{
+    InsertState state;
+    state.buffer_len = 1024;
+    state.buffer = (char*) malloc(state.buffer_len);
+    __insert_profile_codes(ast->root, source, &state);
 }
 
 AstNode* parse(char *source, int source_len)
@@ -262,6 +304,8 @@ void print_tree(AstNode *node, char *source, int indent)
         print_source(indent_space, sizeof(desc) - desc_len, True);
         print_source(source + pos, len, True);
     }
+    if (is_function_block(node, source))
+        printf(" *");
     printf("\n");
 
     /* 显示孩子节点 */
