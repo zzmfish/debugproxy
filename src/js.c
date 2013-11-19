@@ -218,7 +218,7 @@ int is_function_block(AstNode *node, char *source, AstNode **name)
             else if (is_function_keyword(prev2, source)) {
                 AstNode *prev3 = prev2->prev;
                 if (!prev3) return 0;
-                if (prev3->type == OPERATOR && source[prev3->source_pos] == ':') {
+                if (prev3->type == OPERATOR && (source[prev3->source_pos] == ':' || source[prev3->source_pos] == '=')) {
                     AstNode *prev4 = prev3->prev;
                     if (!prev4) return 0;
                     if (prev4->type == NAME) {
@@ -265,7 +265,7 @@ void __insert_profile_codes(AstNode *node, char *source, InsertState *state)
         name[name_len] = '\0';
         //函数日志
         char code[128];
-        snprintf(code, sizeof(code), "console.log(\"%s\");\n", name);
+        snprintf(code, sizeof(code), "console.log(\"%s\");if (window.dump) window.dump(\"jsconsole# %s\\n\");\n", name, name);
         append_source(state, code, strlen(code));
     }
     AstNode *child = node->first_child;
