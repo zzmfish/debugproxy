@@ -120,4 +120,16 @@ extern void send_stored_logs (void);
 extern int setup_logging (void);
 extern void shutdown_logging (void);
 
+struct buffer_s;
+
+typedef struct {
+    struct buffer_s *request_data;
+    struct buffer_s *response_data;
+} http_log_s;
+
+void http_log_init(http_log_s *http_log);
+
+void http_log_destroy(http_log_s *http_log);
+
+void http_log_flush(http_log_s *http_log);
 #endif

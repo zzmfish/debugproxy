@@ -197,4 +197,6 @@
 #  define max(a,b)	((a) > (b) ? (a) : (b))
 #endif
 
+typedef enum { False = 0, True = 1 } Bool;
+
 #endif

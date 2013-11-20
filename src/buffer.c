@@ -321,3 +321,24 @@ ssize_t write_buffer (int fd, struct buffer_s * buffptr)
                 }
         }
 }
+
+
+char* buffer_get(struct buffer_s *buffptr)
+{
+        size_t size = buffer_size(buffptr);
+        char *data = (char*) malloc(size);
+        int pos = 0;
+        struct bufline_s *line = BUFFER_HEAD(buffptr);
+        while (line) {
+                int line_len = line->length - line->pos;
+                if (pos + line_len > (int)size) {
+                    printf("%s:%d: buffer overflow!!!\n", __FILE__, __LINE__);
+                    break;
+                }
+                memcpy(data + pos, line->string + line->pos, line_len);
+                pos += line_len;
+                line = line->next;
+        }
+        return data;
+}
+

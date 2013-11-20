@@ -29,6 +29,7 @@
 #include "utils.h"
 #include "vector.h"
 #include "conf.h"
+#include "buffer.h"
 
 static const char *syslog_level[] = {
         NULL,
@@ -294,4 +295,26 @@ void shutdown_logging (void)
         }
 
         logging_initialized = FALSE;
+}
+
+void http_log_init(http_log_s *http_log)
+{
+    http_log->request_data = new_buffer();
+    http_log->response_data = new_buffer();
+}
+
+void http_log_destroy(http_log_s *http_log)
+{
+    if (http_log->request_data)
+        delete_buffer(http_log->request_data);
+    if (http_log->response_data)
+        delete_buffer(http_log->response_data);
+}
+
+void http_log_flush(http_log_s *http_log)
+{
+    char *request_log = buffer_get(http_log->request_data);
+    printf("======== request ========\n");
+    printf("%s\n", request_log);
+    free(request_log);
 }

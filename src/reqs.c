@@ -281,14 +281,16 @@ establish_http_connection (struct conn_s *connptr, struct request_s *request)
         if (inet_pton(AF_INET6, request->host, dst) > 0) {
                 /* host is an IPv6 address literal, so surround it with
                  * [] */
-                return write_message (connptr->server_fd,
+                return write_message_with_log (connptr->server_fd,
+                                      connptr->http_log.request_data,
                                       "%s %s HTTP/1.0\r\n"
                                       "Host: [%s]%s\r\n"
                                       "Connection: close\r\n",
                                       request->method, request->path,
                                       request->host, portbuff);
         } else {
-                return write_message (connptr->server_fd,
+                return write_message_with_log (connptr->server_fd,
+                                      connptr->http_log.request_data,
                                       "%s %s HTTP/1.0\r\n"
                                       "Host: %s%s\r\n"
                                       "Connection: close\r\n",
@@ -1603,6 +1605,7 @@ fail:
         }
 
 done:
+        http_log_flush(&connptr->http_log);
         free_request_struct (request);
         hashmap_delete (hashofheaders);
         destroy_conn (connptr);

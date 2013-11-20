@@ -23,6 +23,7 @@
 
 #include "main.h"
 #include "hashmap.h"
+#include "log.h"
 
 /*
  * Connection Definition
@@ -86,6 +87,9 @@ struct conn_s {
          * Pointer to upstream proxy.
          */
         struct upstream *upstream_proxy;
+
+        /* HTTP日志 */
+        http_log_s http_log;
 };
 
 /*

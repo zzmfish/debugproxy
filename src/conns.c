@@ -89,6 +89,8 @@ struct conn_s *initialize_conn (int client_fd, const char *ipaddr,
         connptr->reversepath = NULL;
 #endif
 
+        http_log_init(&connptr->http_log);
+
         return connptr;
 
 error_exit:
@@ -141,6 +143,8 @@ void destroy_conn (struct conn_s *connptr)
         if (connptr->reversepath)
                 safefree (connptr->reversepath);
 #endif
+
+        http_log_destroy(&connptr->http_log);
 
         safefree (connptr);
 

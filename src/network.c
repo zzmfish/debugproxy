@@ -27,6 +27,7 @@
 
 #include "heap.h"
 #include "network.h"
+#include "buffer.h"
 
 /*
  * Write the buffer to the socket. If an EINTR occurs, pick up and try
@@ -84,20 +85,17 @@ ssize_t safe_read (int fd, char *buffer, size_t count)
  * was basically stolen from the snprintf() man page of Debian Linux
  * (although I did fix a memory leak. :)
  */
-int write_message (int fd, const char *fmt, ...)
+static int __write_message (int fd, struct buffer_s *log, const char *fmt, va_list ap)
 {
         ssize_t n;
         size_t size = (1024 * 8);       /* start with 8 KB and go from there */
         char *buf, *tmpbuf;
-        va_list ap;
 
         if ((buf = (char *) safemalloc (size)) == NULL)
                 return -1;
 
         while (1) {
-                va_start (ap, fmt);
                 n = vsnprintf (buf, size, fmt, ap);
-                va_end (ap);
 
                 /* If that worked, break out so we can send the buffer */
                 if (n > -1 && (size_t) n < size)
@@ -123,8 +121,33 @@ int write_message (int fd, const char *fmt, ...)
                 return -1;
         }
 
+        /* 数据写到日志 */
+        if (log) {
+            add_to_buffer(log, (unsigned char*) buf, n);
+        }
         safefree (buf);
         return 0;
+}
+
+int write_message (int fd, const char *fmt, ...)
+{
+    int result;
+    va_list ap;
+    va_start (ap, fmt);
+    result = __write_message (fd, NULL, fmt, ap);
+    va_end (ap);
+    return result;
+}
+
+int write_message_with_log (int fd, struct buffer_s *log, const char *fmt, ...)
+{
+    int result;
+    va_list ap;
+    va_start (ap, fmt);
+    result = __write_message (fd, log, fmt, ap);
+    va_end (ap);
+    return result;
+
 }
 
 /*
