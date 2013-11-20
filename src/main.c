@@ -393,6 +393,7 @@ main (int argc, char **argv)
                                 &config_defaults)) {
                 exit (EX_SOFTWARE);
         }
+        reload_url_config();
 
         init_stats ();
 

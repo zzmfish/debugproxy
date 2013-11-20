@@ -1083,3 +1083,73 @@ static HANDLE_FUNC (handle_upstream_no)
         return 0;
 }
 #endif
+
+
+struct url_conf_s *url_conf_list = NULL;
+struct url_conf_s *url_conf_end = NULL;
+
+void reload_url_config(void)
+{
+    struct field {
+        int pos;
+        int len;
+    };
+    char line[1024], c;
+    struct field fields[10], *field;
+    FILE *file;
+    int pos, len;
+    memset(fields, 0, sizeof(fields));
+
+    file = fopen("urls.conf", "r");
+    if (file) {
+        /* 读取配置文件 */
+        while (fgets(line, sizeof(line), file)) {
+            field = fields;
+            pos = 0;
+            /* 读取一行 */
+            while (field < fields + sizeof(fields) / sizeof(fields[0])) {
+                /* 跳过空白 */
+                c = line[pos];
+                while (c == ' ' || c == '\t') {
+                    c = line[++ pos];
+                }
+
+                /* 读取字段 */
+                len = 0;
+                while (pos + len < (int) sizeof(line)) {
+                    c = line[pos + len];
+                    if (c == '\r' || c == '\n' || c == '\0' || c == ' ' || c == '\t')
+                        break;
+                    len ++;
+                }
+
+                /* 保存字段 */
+                field->pos = pos;
+                field->len = len;
+
+                /* 行结束 */
+                field ++;
+                pos += len;
+                if (c == '\r' || c == '\n' || c == '\0')
+                    break;
+
+            }
+
+            /* 添加配置项 */
+            if (fields[0].len > 0) {
+                struct url_conf_s *url_conf = (struct url_conf_s*) malloc(sizeof(struct url_conf_s));
+                url_conf->url = strndup(line + fields[0].pos, fields[0].len);
+                url_conf->local_file = strndup(line + fields[1].pos, fields[1].len);
+                //printf("urlconf: url=%s, local_file=%s\n", url_conf->url, url_conf->local_file);
+                if (!url_conf_end) {
+                    url_conf_list = url_conf_end = url_conf;
+                }
+                else {
+                    url_conf_end -> next = url_conf;
+                    url_conf_end = url_conf;
+                }
+            }
+        }
+        fclose(file);
+    }
+}

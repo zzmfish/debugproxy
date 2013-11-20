@@ -112,8 +112,17 @@ struct config_s {
         vector_t add_headers;
 };
 
+struct url_conf_s {
+    char *url;
+    char *local_file;
+    struct url_conf_s *next;
+};
+extern struct url_conf_s *url_conf_list;
+
 extern int reload_config_file (const char *config_fname, struct config_s *conf,
                                struct config_s *defaults);
+
+void reload_url_config(void);
 
 int config_compile_regex (void);
 
