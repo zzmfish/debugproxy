@@ -1098,6 +1098,7 @@ void reload_url_config(void)
     struct field fields[10], *field;
     FILE *file;
     int pos, len;
+    struct url_conf_s *url_conf;
     memset(fields, 0, sizeof(fields));
 
     file = fopen("urls.conf", "r");
@@ -1137,10 +1138,10 @@ void reload_url_config(void)
 
             /* 添加配置项 */
             if (fields[0].len > 0) {
-                struct url_conf_s *url_conf = (struct url_conf_s*) malloc(sizeof(struct url_conf_s));
+                url_conf = (struct url_conf_s*) malloc(sizeof(struct url_conf_s));
                 url_conf->url = strndup(line + fields[0].pos, fields[0].len);
                 url_conf->local_file = strndup(line + fields[1].pos, fields[1].len);
-                //printf("urlconf: url=%s, local_file=%s\n", url_conf->url, url_conf->local_file);
+                url_conf->next = NULL;
                 if (!url_conf_end) {
                     url_conf_list = url_conf_end = url_conf;
                 }
@@ -1152,4 +1153,14 @@ void reload_url_config(void)
         }
         fclose(file);
     }
+
+    url_conf = url_conf_list;
+    printf("+---------------------------------------------------------------------------------+\n");
+    printf("|URL                                     | LOCAL FILE                             |\n");
+    printf("+---------------------------------------------------------------------------------+\n");
+    while (url_conf) {
+        printf("|%-40s|%-40s|\n", url_conf->url, url_conf->local_file);
+        url_conf = url_conf->next;
+    }
+    printf("+---------------------------------------------------------------------------------+\n");
 }
