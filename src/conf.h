@@ -124,6 +124,8 @@ extern int reload_config_file (const char *config_fname, struct config_s *conf,
 
 void reload_url_config(void);
 
+char *get_local_file(char *url);
+
 int config_compile_regex (void);
 
 #endif

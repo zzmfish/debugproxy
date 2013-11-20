@@ -1164,3 +1164,14 @@ void reload_url_config(void)
     }
     printf("+---------------------------------------------------------------------------------+\n");
 }
+
+char *get_local_file(char *url)
+{
+    struct url_conf_s *url_conf = url_conf_list;
+    while (url_conf) {
+        if (strcmp(url, url_conf->url) == 0)
+            return url_conf->local_file;
+        url_conf = url_conf->next;
+    }
+    return NULL;
+}

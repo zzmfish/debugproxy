@@ -411,47 +411,8 @@ BAD_REQUEST_ERROR:
         }
 #endif
 
-        #ifdef ZHOUZM_CHANGE
-        {
-          const char* debug_redirects1[] = {
-            "http://p3.pic.51img1.com/v3/my/js/index.js?",
-            "/data1/zhouzm/tmp/index.js",
-      
-            "http://static.51img1.com/v3/pub/js/jquery.js",
-            "/data1/zhouzm/tmp/jquery.js",
-      
-            0
-          };
-          const char* debug_redirects2[] = {
-            "http://www.baidu.com/",
-            "/home/zhouzm/tmp/index.html",
-      
-            "http://bbs.imp3.net/forumdata/cache/style_1_common.css?KWa",
-            "/data1/zhouzm/tmp/style_1_common.css",
-      
-            0
-          };
-          int i = 0;
-          const char *debug_redirect = 0;
-          printf("\x1b[1m[%8s]\x1b[0m %s\n", request->method, url);
-        
-          *replace_file = 0;
-          for (i = 0; (debug_redirect = debug_redirects1[i]); i += 2) {
-            if (strstr(url, debug_redirect)) {
-              *replace_file = debug_redirects1[i+1];
-              break;
-            }
-          }
-          if (!*replace_file) {
-            for (i = 0; (debug_redirect = debug_redirects2[i]); i += 2) {
-              if (strcmp(url, debug_redirect) == 0) {
-                *replace_file = debug_redirects2[i+1];
-                break;
-              }
-            }
-          }
-        }
-        #endif
+        printf("\x1b[1m[%8s]\x1b[0m %s\n", request->method, url);
+        *replace_file = get_local_file(url);
 
         if (strncasecmp (url, "http://", 7) == 0
             || (UPSTREAM_CONFIGURED () && strncasecmp (url, "ftp://", 6) == 0))
