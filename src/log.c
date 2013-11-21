@@ -297,6 +297,8 @@ void shutdown_logging (void)
         logging_initialized = FALSE;
 }
 
+static const char HTTP_LOG_FILE[] = "http.log";
+
 void http_log_init(http_log_s *http_log)
 {
     http_log->request_data = new_buffer();
@@ -315,14 +317,31 @@ void http_log_flush(http_log_s *http_log)
 {
     unsigned char str_end[] = { '\0' };
     char *request_data, *response_data;
+    FILE *file;
+
     add_to_buffer(http_log->request_data, str_end, 1);
     add_to_buffer(http_log->response_data, str_end, 1);
+
     request_data = buffer_get(http_log->request_data);
     response_data = buffer_get(http_log->response_data);
-    printf("======== request ========\n");
-    printf("%s\n", request_data);
-    printf("======== response ========\n");
-    printf("%s\n", response_data);
+
+    file = fopen(HTTP_LOG_FILE, "a");
+    
+    if (file) {
+        fprintf(file, "======== request ========\n");
+        fprintf(file, "%s\n", request_data);
+        fprintf(file, "======== response ========\n");
+        fprintf(file, "%s\n", response_data);
+        fclose(file);
+    }
+    else
+        printf("ERROR: Can't open http log file !!!!!!\n");
+
     free(request_data);
     free(response_data);
+}
+
+void http_log_reset(void)
+{
+    unlink(HTTP_LOG_FILE);
 }

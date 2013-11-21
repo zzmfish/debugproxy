@@ -394,6 +394,7 @@ main (int argc, char **argv)
                 exit (EX_SOFTWARE);
         }
         reload_url_config();
+        http_log_reset();
 
         init_stats ();
 
