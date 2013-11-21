@@ -270,7 +270,7 @@ ssize_t read_buffer (int fd, struct buffer_s * buffptr)
  * Write the bytes in the buffer to the socket.
  * Takes a connection and returns the number of bytes written.
  */
-ssize_t write_buffer (int fd, struct buffer_s * buffptr)
+ssize_t write_buffer (int fd, struct buffer_s * buffptr, struct buffer_s *log)
 {
         ssize_t bytessent;
         struct bufline_s *line;
@@ -285,6 +285,9 @@ ssize_t write_buffer (int fd, struct buffer_s * buffptr)
         assert (BUFFER_HEAD (buffptr) != NULL);
         line = BUFFER_HEAD (buffptr);
 
+        if (log) {
+            add_to_buffer(log, line->string + line->pos, line->length - line->pos);
+        }
         bytessent =
             send (fd, line->string + line->pos, line->length - line->pos,
                   MSG_NOSIGNAL);

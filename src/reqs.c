@@ -542,7 +542,7 @@ static int pull_client_data (struct conn_s *connptr, long int length)
                         goto ERROR_EXIT;
 
                 if (!connptr->error_variables) {
-                        if (safe_write (connptr->server_fd, buffer, len) < 0)
+                        if (safe_write_with_log (connptr->server_fd, connptr->http_log.request_data, buffer, len) < 0)
                                 goto ERROR_EXIT;
                 }
 
@@ -910,7 +910,7 @@ process_client_headers (struct conn_s *connptr, hashmap_t hashofheaders)
                         if (!is_anonymous_enabled ()
                             || anonymous_search (data) > 0) {
                                 ret =
-                                    write_message (connptr->server_fd,
+                                    write_message_with_log (connptr->server_fd, connptr->http_log.request_data,
                                                    "%s: %s\r\n", data, header);
                                 if (ret < 0) {
                                         indicate_http_error (connptr, 503,
@@ -931,7 +931,7 @@ process_client_headers (struct conn_s *connptr, hashmap_t hashofheaders)
 #endif
 
         /* Write the final "blank" line to signify the end of the headers */
-        if (safe_write (connptr->server_fd, "\r\n", 2) < 0)
+        if (safe_write_with_log (connptr->server_fd, connptr->http_log.request_data, "\r\n", 2) < 0)
                 return -1;
 
         /*
@@ -1032,7 +1032,7 @@ retry:
         }
 
         /* Send the saved response line first */
-        ret = write_message (connptr->client_fd, "%s\r\n", response_line);
+        ret = write_message_with_log (connptr->client_fd, connptr->http_log.response_data, "%s\r\n", response_line);
         safefree (response_line);
         if (ret < 0)
                 goto ERROR_EXIT;
@@ -1066,7 +1066,8 @@ retry:
 #ifdef REVERSE_SUPPORT
         /* Write tracking cookie for the magical reverse proxy path hack */
         if (config.reversemagic && connptr->reversepath) {
-                ret = write_message (connptr->client_fd,
+                ret = write_message_with_log (connptr->client_fd,
+                                     connptr->http_log.response_data,
                                      "Set-Cookie: " REVERSE_COOKIE
                                      "=%s; path=/\r\n", connptr->reversepath);
                 if (ret < 0)
@@ -1090,7 +1091,8 @@ retry:
 
                 if (reverse) {
                         ret =
-                            write_message (connptr->client_fd,
+                            write_message_with_log (connptr->client_fd,
+                                           connptr->http_log.response_data,
                                            "Location: %s%s%s\r\n",
                                            config.reversebaseurl,
                                            (reverse->path + 1), (header + len));
@@ -1132,7 +1134,8 @@ retry:
                         }
                         #endif
 
-                        ret = write_message (connptr->client_fd,
+                        ret = write_message_with_log (connptr->client_fd,
+                                             connptr->http_log.response_data,
                                              "%s: %s\r\n", data, header);
                         if (ret < 0)
                                 goto ERROR_EXIT;
@@ -1141,7 +1144,7 @@ retry:
         hashmap_delete (hashofheaders);
 
         /* Write the final blank line to signify the end of the headers */
-        if (safe_write (connptr->client_fd, "\r\n", 2) < 0)
+        if (safe_write_with_log (connptr->client_fd, connptr->http_log.response_data, "\r\n", 2) < 0)
                 return -1;
 
         return 0;
@@ -1232,11 +1235,11 @@ static void relay_connection (struct conn_s *connptr)
                         break;
                 }
                 if (FD_ISSET (connptr->server_fd, &wset)
-                    && write_buffer (connptr->server_fd, connptr->cbuffer) < 0) {
+                    && write_buffer (connptr->server_fd, connptr->cbuffer, connptr->http_log.request_data) < 0) {
                         break;
                 }
                 if (FD_ISSET (connptr->client_fd, &wset)
-                    && write_buffer (connptr->client_fd, connptr->sbuffer) < 0) {
+                    && write_buffer (connptr->client_fd, connptr->sbuffer, connptr->http_log.response_data) < 0) {
                         break;
                 }
         }
@@ -1247,7 +1250,7 @@ static void relay_connection (struct conn_s *connptr)
          */
         socket_blocking (connptr->client_fd);
         while (buffer_size (connptr->sbuffer) > 0) {
-                if (write_buffer (connptr->client_fd, connptr->sbuffer) < 0)
+                if (write_buffer (connptr->client_fd, connptr->sbuffer, connptr->http_log.response_data) < 0)
                         break;
         }
         shutdown (connptr->client_fd, SHUT_WR);
@@ -1257,7 +1260,7 @@ static void relay_connection (struct conn_s *connptr)
          */
         socket_blocking (connptr->server_fd);
         while (buffer_size (connptr->cbuffer) > 0) {
-                if (write_buffer (connptr->server_fd, connptr->cbuffer) < 0)
+                if (write_buffer (connptr->server_fd, connptr->cbuffer, connptr->http_log.request_data) < 0)
                         break;
         }
 

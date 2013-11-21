@@ -35,7 +35,7 @@ extern int add_to_buffer (struct buffer_s *buffptr, unsigned char *data,
                           size_t length);
 
 extern ssize_t read_buffer (int fd, struct buffer_s *buffptr);
-extern ssize_t write_buffer (int fd, struct buffer_s *buffptr);
+extern ssize_t write_buffer (int fd, struct buffer_s *buffptr, struct buffer_s *log);
 
 char* buffer_get(struct buffer_s *buffptr);
 

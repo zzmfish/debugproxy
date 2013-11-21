@@ -313,8 +313,16 @@ void http_log_destroy(http_log_s *http_log)
 
 void http_log_flush(http_log_s *http_log)
 {
-    char *request_log = buffer_get(http_log->request_data);
+    unsigned char str_end[] = { '\0' };
+    char *request_data, *response_data;
+    add_to_buffer(http_log->request_data, str_end, 1);
+    add_to_buffer(http_log->response_data, str_end, 1);
+    request_data = buffer_get(http_log->request_data);
+    response_data = buffer_get(http_log->response_data);
     printf("======== request ========\n");
-    printf("%s\n", request_log);
-    free(request_log);
+    printf("%s\n", request_data);
+    printf("======== response ========\n");
+    printf("%s\n", response_data);
+    free(request_data);
+    free(response_data);
 }

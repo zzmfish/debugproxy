@@ -64,6 +64,12 @@ ssize_t safe_write (int fd, const char *buffer, size_t count)
         return count;
 }
 
+ssize_t safe_write_with_log (int fd, struct buffer_s *log, const char *buffer, size_t count)
+{
+    add_to_buffer(log, (unsigned char*) buffer, count);
+    return safe_write(fd, buffer, count);
+}
+
 /*
  * Matched pair for safe_write(). If an EINTR occurs, pick up and try
  * again.
