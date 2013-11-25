@@ -22,6 +22,7 @@
  * or the syslog daemon. Not much to it...
  */
 
+#include <sys/file.h>
 #include "main.h"
 
 #include "heap.h"
@@ -328,6 +329,7 @@ void http_log_flush(http_log_s *http_log)
     file = fopen(HTTP_LOG_FILE, "a");
     
     if (file) {
+        flock(LOCK_EX, fileno(file));
         fprintf(file, "======== request ========\n");
         fprintf(file, "%s\n", request_data);
         fprintf(file, "======== response ========\n");
