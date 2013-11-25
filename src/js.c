@@ -34,6 +34,14 @@ char next_char(ParseState *state)
     return '\0';
 }
 
+char next_nonspace_char(ParseState *state)
+{
+    char c = next_char(state);
+    while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+        c = next_char(state);
+    return c;
+}
+
 AstNode* create_node(AstNode *parent, NodeType type, int pos, int len)
 {
     AstNode *node = (AstNode*) malloc(sizeof(AstNode));
@@ -141,13 +149,13 @@ AstNode* parse_block(ParseState *state)
     AstNode *node = create_node(state->cur_node, BLOCK, state->source_pos - 1, 0);
     AstNode *cur_node = state->cur_node;
     state->cur_node = node;
-    char c = next_char(state);
+    char c = next_nonspace_char(state);
     while (c != '\0' && c != end_char) {
         state->source_pos --;
         AstNode *child = parse_statement(state);
         if (child)
             append_child(node, child);
-        c = next_char(state);
+        c = next_nonspace_char(state);
     }
     node->source_len = state->source_pos - node->source_pos;
     state->cur_node = cur_node;
@@ -161,9 +169,7 @@ AstNode* __parse_statement(ParseState *state, int testMode)
     char c;
     int source_pos = state->source_pos;
 
-    c = next_char(state);
-    while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-        c = next_char(state);
+    c = next_nonspace_char(state);
     if (c == '\0') {
     }
     else if (c == '{' || c == '(' || c == '[') {
@@ -252,27 +258,38 @@ void __insert_profile_codes(AstNode *node, char *source, InsertState *state)
 {
     if (!node) return;
     AstNode *name_node = NULL;
+    char name[64];
+    char code[128];
+    int profiling = 0;
     if (is_function_block(node, source, &name_node)) {
         //插入源码
         append_source(state, source + state->dumped_pos, node->source_pos + 1 - state->dumped_pos);
         state->dumped_pos = node->source_pos + 1;
         //函数名称
-        char name[64];
         int name_len = name_node->source_len;
         if (name_len > sizeof(name) - 1)
             name_len = sizeof(name) - 1;
         memcpy(name, source + name_node->source_pos, name_len);
         name[name_len] = '\0';
-        //函数日志
-        char code[128];
+        //进入函数日志
         snprintf(code, sizeof(code), "console.log(\"%s\");if (window.dump) window.dump(\"jsconsole# %s\\n\");\n", name, name);
         append_source(state, code, strlen(code));
+        profiling = 1;
     }
     AstNode *child = node->first_child;
     while (child) {
         __insert_profile_codes(child, source, state);
         child = child->next;
     }
+    if (profiling) {
+        //函数体
+        append_source(state, source + state->dumped_pos, node->source_pos + node->source_len - 1 - state->dumped_pos);
+        state->dumped_pos = node->source_pos + node->source_len - 1;
+        //退出函数日志
+        snprintf(code, sizeof(code), "console.log(\"<<%s\");if (window.dump) window.dump(\"jsconsole# <<%s\\n\");\n", name, name);
+        append_source(state, code, strlen(code));
+    }
+
 }
 
 void insert_profile_codes(AST *ast, char *source, int source_len,
